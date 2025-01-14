@@ -28,7 +28,7 @@ last_update:
 
 总之， 第一篇选择从 Sanitizer 开始。~~毕竟要作为我毕设的第一章~~
 
-
+<!--truncate-->
 
 ## SoK: Sanitizing for Security
 
