@@ -34,6 +34,12 @@ const List: LinkCardProps[] = [
     description: "同组的学弟，大二开始学 Pwn，进度非常快，喜欢奶龙（笑）",
     icon: "https://www.haoqiguai.fun/DCC93F41ECF0DAC9572C5575D06D9151.ico",
   },
+  {
+    link: "https://www.fei3ei.xyz/",
+    linkText: "fei3ei",
+    description: "21 届 vidar-tream ( vidar-team? ) 的逆向手，目前在游戏安全",
+    icon: "https://img.notionusercontent.com/s3/prod-files-secure%2F9037d784-f3cb-433f-bb0a-ef7246448e8a%2F00ac08b0-805a-498e-90c2-2170e944db82%2F%E5%A4%B4%E5%83%8F%E4%B8%93%E7%94%A8.jpg/size/?exp=1743530223&sig=39fAaDG5Bu6uoCAFVK7PL67NHg5qESnX6SkfNAvLZCo&id=1bd91b50-aa7f-8144-914b-000bb96f8234&table=collection"
+  }
 ];
 
 export default List;
