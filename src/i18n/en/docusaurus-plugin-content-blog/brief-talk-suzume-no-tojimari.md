@@ -1,7 +1,7 @@
 ---
 title: Review of Sparrow's Door Lock (Bell Sprout Journey)
 authors: nova
-tags: [Essay, Film Review]
+tags: [oho, Essay, Film Review]
 ---
 
 :::danger Must-Read Before Reading

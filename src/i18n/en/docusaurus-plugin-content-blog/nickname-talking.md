@@ -1,7 +1,7 @@
 ---
 title: On Nicknames
 authors: nova
-tags: [Essays]
+tags: [oho, Essays]
 ---
 
 As you can see, my nickname is `Nova Noir` (or `Nova No1R`, `Nova No1r`, and various other variations), but what's the story behind this nickname? What will be the past, present, and future of my online alias?
@@ -44,9 +44,9 @@ Initially, this name was used in my CSGO games for a period (although I mostly u
 
 Gradually, I started using **Nova** regularly, but faced issues with duplicate names. Also, I felt that having such a long nickname like "Nova" with no additional identifiers was inefficient and lacked uniqueness. In March 2017, after the release of the Spectrum Case, I chose "neo-noir" as a suffix, which resonated with my skin. This has been consistent till now. Interestingly, neither "Nova" nor "noir" was chosen based on their meanings; I simply thought they sounded cool.
 
-Around 2022, after entering university, I realized the importance of *Chinese identifiers*. Having a Chinese nickname can leave a lasting impression among Chinese-speaking communities, especially on platforms like GitHub, which are primarily in English. Besides, I felt that a nickname without Chinese characters looked empty on common social apps. Adding Japanese characters could work, but it wouldn't have the same impact.
+Around 2022, after entering university, I realized the importance of _Chinese identifiers_. Having a Chinese nickname can leave a lasting impression among Chinese-speaking communities, especially on platforms like GitHub, which are primarily in English. Besides, I felt that a nickname without Chinese characters looked empty on common social apps. Adding Japanese characters could work, but it wouldn't have the same impact.
 
-Hence, I started thinking about translating "NovaNoir." Obviously, "Nova" and "Noir" are two completely contrasting concepts; while their English combination may have a unique aesthetic, in a Chinese context, it could evoke a "cringey" feeling—something like "魅影新星" or "暗夜新星," but the pun on "新星" didn't sound elegant. After much thought, I settled on *黯星座* ("Dark Star Sign"), a name that felt less edgy and somewhat satisfying.
+Hence, I started thinking about translating "NovaNoir." Obviously, "Nova" and "Noir" are two completely contrasting concepts; while their English combination may have a unique aesthetic, in a Chinese context, it could evoke a "cringey" feeling—something like "魅影新星" or "暗夜新星," but the pun on "新星" didn't sound elegant. After much thought, I settled on _黯星座_ ("Dark Star Sign"), a name that felt less edgy and somewhat satisfying.
 
 ## To The Future
 

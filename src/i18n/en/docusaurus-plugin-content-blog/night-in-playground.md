@@ -1,18 +1,21 @@
 ---
 title: Night Run on the Playground
 authors: nova
-tags: [Essay]
+tags: [oho, Essay]
 ---
 
 # Night Run on the Playground
+
 👴 was probably too exhausted. Today, he intended to study the Xian'an number theory, look into the unit and research some pwns, but in reality, 👴 didn't do anything productive all afternoon except battling himself, which only made him more emotional. So, after a long internal struggle, 👴 decided to eat first and then think.
 
 ## Meeting Steve Jobs at Tsinghua
+
 👴 went out for dinner at five o'clock for the first time. In Beijing, the sun sets at five o'clock, which is something unimaginable in 👴's hometown. Even in winter at five o'clock, the sun still shines bright overhead. Once while video calling with a girl in his freshman year, one had dark skin and the other fair, someone who didn't know might have mistaken 👴 for dating an American girl.
 👴 ordered a beef steak with abalone sauce, which is one of the highly praised dishes at Tsinghua. 👴 randomly stumbled upon a video of Steve Jobs' speech at Stanford University. 👴 thought he spoke well, although 👴 had a mediocre impression of 🍎; even after buying an iPad and finding it very useful, his opinion didn't change. However, 👴 had a good impression of Steve Jobs as a person.
 👴 can't remember the details of Jobs' speech since he was already exhausted at the time. He only remembers something about "stay something, keep something," which seemed to be quite motivational.
 
 ## Night Run
+
 The beef steak with abalone sauce came with rich side dishes. In order to practice the "clean plate" campaign, 👴 endured the greasiness for a long time. When he finally left the canteen, the moon 🌛 was already out. For someone like 👴, who lives in a low latitude region with long daylight hours every day, there was a sense of time slipping away in that moment.
 
 🌛 Perhaps a flash of inspiration struck 👴's brain. He suddenly remembered a saying he read somewhere, which roughly meant: when you don't know what to do, go exercise. 👴 thought it was silly; feeling mentally exhausted already, the idea of becoming physically exhausted through exercise seemed unreasonable. Nevertheless, in order to achieve his ambitious goal of running 100km each semester as a healthy university student, 👴 started walking towards the playground against the darkness.
